@@ -13,3 +13,9 @@ object Onboarding
 
 @Serializable
 object Home
+
+@Serializable
+object History
+
+@Serializable
+object Account

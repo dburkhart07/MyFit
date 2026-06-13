@@ -1,10 +1,13 @@
-package com.example.myfit.ui.common
+package com.example.myfit.ui.components
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
@@ -19,7 +22,7 @@ import com.example.myfit.ui.theme.MyFitTheme
  */
 enum class BottomTab(val label: String, val icon: ImageVector) {
     Home("Home", Icons.Filled.Home),
-    History("History", Icons.Filled.DateRange),
+    History("History", Icons.Filled.AccessTime),
     Account("Account", Icons.Filled.Person),
 }
 
@@ -33,14 +36,17 @@ fun MyFitBottomBar(
     current: BottomTab,
     onSelect: (BottomTab) -> Unit,
 ) {
-    NavigationBar {
-        BottomTab.entries.forEach { tab ->
-            NavigationBarItem(
-                selected = tab == current,
-                onClick = { onSelect(tab) },
-                icon = { Icon(tab.icon, contentDescription = tab.label) },
-                label = { Text(tab.label) },
-            )
+    Column {
+        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+        NavigationBar {
+            BottomTab.entries.forEach { tab ->
+                NavigationBarItem(
+                    selected = tab == current,
+                    onClick = { onSelect(tab) },
+                    icon = { Icon(tab.icon, contentDescription = tab.label) },
+                    label = { Text(tab.label) },
+                )
+            }
         }
     }
 }
