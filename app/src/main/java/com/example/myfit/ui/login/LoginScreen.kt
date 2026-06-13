@@ -1,13 +1,19 @@
 package com.example.myfit.ui.login
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -22,6 +28,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -29,6 +38,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myfit.auth.AuthUiState
 import com.example.myfit.auth.AuthViewModel
+import com.example.myfit.ui.components.Logo
 
 @Composable
 fun LoginScreen(
@@ -36,68 +46,135 @@ fun LoginScreen(
     onLoginSuccess: () -> Unit,
     viewModel: AuthViewModel = viewModel(),
 ) {
+    val colors = MaterialTheme.colorScheme
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var email by rememberSaveable { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var showAlertDialog by rememberSaveable { mutableStateOf(false) }
     val isLoading = uiState is AuthUiState.Loading
 
+    val isFormValid = AuthViewModel.isValidEmail(email) && password.isNotBlank()
+    val emailError = email.isNotBlank() && !AuthViewModel.isValidEmail(email)
+
     LaunchedEffect(uiState) {
-        if (uiState is AuthUiState.Success) onLoginSuccess()
+        when (uiState) {
+            is AuthUiState.Success -> onLoginSuccess()
+            is AuthUiState.Error -> showAlertDialog = true
+            else -> Unit
+        }
     }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(text = "MyFit", style = MaterialTheme.typography.headlineMedium)
-
-        OutlinedTextField(
-            value = email,
-            onValueChange = { email = it },
-            label = { Text("Email") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        OutlinedTextField(
-            value = password,
-            onValueChange = { password = it },
-            label = { Text("Password") },
-            singleLine = true,
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        if (uiState is AuthUiState.Error) {
-            Text(
-                text = (uiState as AuthUiState.Error).message,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-        }
-
-        Button(
-            onClick = { viewModel.login(email, password) },
-            enabled = !isLoading,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    color = MaterialTheme.colorScheme.onPrimary,
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(colors.background, colors.surface, colors.background)
                 )
-            } else {
-                Text("Log in")
+            ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Logo()
+
+            Text(
+                text = "Log in",
+                color = colors.onBackground,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+            )
+
+            Box(modifier = Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = email,
+                onValueChange = { email = it },
+                label = { Text("Email") },
+                placeholder = { Text("your.email@example.com") },
+                singleLine = true,
+                isError = emailError,
+                supportingText = if (emailError) {
+                    { Text("Email must be valid format") }
+                } else {
+                    null
+                },
+                shape = RoundedCornerShape(8.dp),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            OutlinedTextField(
+                value = password,
+                onValueChange = { password = it },
+                label = { Text("Password") },
+                singleLine = true,
+                shape = RoundedCornerShape(8.dp),
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Button(
+                onClick = { viewModel.login(email, password) },
+                enabled = !isLoading && isFormValid,
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = colors.onPrimary,
+                    )
+                } else {
+                    Text("Log in", fontWeight = FontWeight.SemiBold)
+                }
+            }
+
+            TextButton(
+                onClick = onNavigateToSignup,
+                enabled = !isLoading,
+                colors = ButtonDefaults.textButtonColors(contentColor = colors.secondary),
+            ) {
+                Text("Don't have an account? Sign up")
             }
         }
+    }
 
-        TextButton(onClick = onNavigateToSignup, enabled = !isLoading) {
-            Text("Don't have an account? Sign up")
-        }
+    if (showAlertDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showAlertDialog = false
+                viewModel.resetState()
+            },
+            containerColor = colors.surface,
+            titleContentColor = colors.onSurface,
+            title = {
+                Text(
+                    text = "Login failed",
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center,
+                )
+            },
+            confirmButton = {
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    TextButton(
+                        onClick = {
+                            showAlertDialog = false
+                            viewModel.resetState()
+                        },
+                        colors = ButtonDefaults.textButtonColors(contentColor = colors.secondary),
+                    ) {
+                        Text("OK")
+                    }
+                }
+            },
+        )
     }
 }

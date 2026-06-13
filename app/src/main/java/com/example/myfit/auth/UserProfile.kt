@@ -9,5 +9,6 @@ package com.example.myfit.auth
 data class UserProfile(
     val id: String = "",
     val email: String = "",
-    val name: String = "",
+    val firstName: String = "",
+    val lastName: String = "",
 )

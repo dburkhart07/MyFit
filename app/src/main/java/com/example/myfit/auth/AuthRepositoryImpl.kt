@@ -10,7 +10,12 @@ class AuthRepositoryImpl(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
 ) : AuthRepository {
 
-    override suspend fun signUp(email: String, pass: String, name: String): Result<UserProfile> {
+    override suspend fun signUp(
+        email: String,
+        pass: String,
+        firstName: String,
+        lastName: String,
+    ): Result<UserProfile> {
         return try {
             // 1. Create the Firebase Auth user.
             val authResult = firebaseAuth.createUserWithEmailAndPassword(email, pass).await()
@@ -19,12 +24,18 @@ class AuthRepositoryImpl(
 
             // 2. Set the Auth display name so getCurrentUser() can greet the user on relaunch
             //    without needing a Firestore read.
+            val fullName = listOf(firstName, lastName).filter { it.isNotBlank() }.joinToString(" ")
             firebaseUser.updateProfile(
-                UserProfileChangeRequest.Builder().setDisplayName(name).build()
+                UserProfileChangeRequest.Builder().setDisplayName(fullName).build()
             ).await()
 
             // 3. Persist the profile to Firestore at users/{id}.
-            val userProfile = UserProfile(id = userId, email = email, name = name)
+            val userProfile = UserProfile(
+                id = userId,
+                email = email,
+                firstName = firstName,
+                lastName = lastName,
+            )
             firestore.collection("users").document(userId).set(userProfile).await()
 
             Result.success(userProfile)
@@ -57,10 +68,13 @@ class AuthRepositoryImpl(
         // Uses only the locally-cached Auth session (no network), so it's safe to call
         // synchronously when choosing the start destination on launch.
         val firebaseUser = firebaseAuth.currentUser ?: return null
+        // The cached session only exposes the combined Auth display name; the split first/last
+        // names live in Firestore and are loaded on signIn(). Seed firstName so the relaunch
+        // greeting still works without a network read.
         return UserProfile(
             id = firebaseUser.uid,
             email = firebaseUser.email ?: "",
-            name = firebaseUser.displayName ?: "",
+            firstName = firebaseUser.displayName ?: "",
         )
     }
 }

@@ -21,25 +21,38 @@ class AuthViewModel(
 
     private val _uiState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
-
-    /** Current user profile, seeded from any existing session. */
     private var profile: UserProfile? = repository.getCurrentUser()
 
-    /** True if a user session already exists (used to pick the start destination). */
-    val isLoggedIn: Boolean
-        get() = profile != null
-
-    /** Display name to greet the user with; falls back to email, then a generic word. */
     val displayName: String
-        get() = profile?.name?.takeIf { it.isNotBlank() }
-            ?: profile?.email
+        get() = profile?.let { "${it.firstName} ${it.lastName}".trim() }
+            ?.takeIf { it.isNotBlank() }
             ?: "there"
 
-    fun signUp(name: String, email: String, password: String) {
-        if (!validate(name, email, password)) return
+    fun signUp(
+        firstName: String,
+        lastName: String,
+        email: String,
+        password: String,
+        confirmPassword: String,
+    ) {
+        val trimmedFirst = firstName.trim()
+        val trimmedLast = lastName.trim()
+        val trimmedEmail = email.trim()
+        val error = when {
+            trimmedFirst.isBlank() -> "First name is required"
+            trimmedLast.isBlank() -> "Last name is required"
+            !isValidEmail(trimmedEmail) -> "Please enter a valid email address"
+            password.length < MIN_PASSWORD_LENGTH -> "Password must be at least $MIN_PASSWORD_LENGTH characters"
+            password != confirmPassword -> "Passwords do not match"
+            else -> null
+        }
+        if (error != null) {
+            _uiState.value = AuthUiState.Error(error)
+            return
+        }
         _uiState.value = AuthUiState.Loading
         viewModelScope.launch {
-            repository.signUp(email.trim(), password, name.trim())
+            repository.signUp(trimmedEmail, password, trimmedFirst, trimmedLast)
                 .onSuccess {
                     profile = it
                     _uiState.value = AuthUiState.Success
@@ -49,18 +62,16 @@ class AuthViewModel(
     }
 
     fun login(email: String, password: String) {
-        if (email.isBlank() || password.isBlank()) {
-            _uiState.value = AuthUiState.Error("Email and password are required")
-            return
-        }
+        val trimmedEmail = email.trim()
         _uiState.value = AuthUiState.Loading
         viewModelScope.launch {
-            repository.signIn(email.trim(), password)
+            repository.signIn(trimmedEmail, password)
                 .onSuccess {
                     profile = it
                     _uiState.value = AuthUiState.Success
                 }
-                .onFailure { _uiState.value = AuthUiState.Error(it.message ?: "Login failed") }
+                // Catch-all for all errors
+                .onFailure { _uiState.value = AuthUiState.Error("Credentials are invalid") }
         }
     }
 
@@ -70,23 +81,13 @@ class AuthViewModel(
         _uiState.value = AuthUiState.Idle
     }
 
-    /** Reset transient state so a screen re-entry starts clean. */
     fun resetState() {
         _uiState.value = AuthUiState.Idle
     }
 
-    private fun validate(name: String, email: String, password: String): Boolean {
-        val error = when {
-            name.isBlank() -> "Name is required"
-            email.isBlank() -> "Email is required"
-            password.length < 6 -> "Password must be at least 6 characters"
-            else -> null
-        }
-        return if (error != null) {
-            _uiState.value = AuthUiState.Error(error)
-            false
-        } else {
-            true
-        }
+    companion object {
+        const val MIN_PASSWORD_LENGTH = 8
+        private val EMAIL_REGEX = Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")
+        fun isValidEmail(email: String): Boolean = EMAIL_REGEX.matches(email.trim())
     }
 }

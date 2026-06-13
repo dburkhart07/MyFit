@@ -7,6 +7,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.myfit.ui.home.HomeScreen
 import com.example.myfit.ui.login.LoginScreen
 import com.example.myfit.ui.login.SignupScreen
+import com.example.myfit.ui.onboarding.OnboardingScreen
 import com.google.firebase.auth.FirebaseAuth
 
 @Composable
@@ -29,8 +30,17 @@ fun AppNavigation() {
         composable<Signup> {
             SignupScreen(
                 onNavigateToLogin = { navController.popBackStack() },
+                // New accounts go through workout onboarding before reaching home.
                 onSignupSuccess = {
-                    navController.navigate(Home) { popUpTo<Login> { inclusive = true } }
+                    navController.navigate(Onboarding) { popUpTo<Login> { inclusive = true } }
+                },
+            )
+        }
+
+        composable<Onboarding> {
+            OnboardingScreen(
+                onSubmit = {
+                    navController.navigate(Home) { popUpTo<Onboarding> { inclusive = true } }
                 },
             )
         }
