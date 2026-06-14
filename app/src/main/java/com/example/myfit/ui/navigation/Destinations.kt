@@ -12,7 +12,7 @@ object Signup
 object Onboarding
 
 @Serializable
-object Home
+object Workouts
 
 @Serializable
 object History

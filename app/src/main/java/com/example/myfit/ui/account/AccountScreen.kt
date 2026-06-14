@@ -214,7 +214,7 @@ private fun WorkoutInfoSection() {
 
         FieldLabel("Equipment")
         if (isEditing) {
-            EquipmentChips(
+            EquipmentBox(
                 selected = editEquipment,
                 onToggle = { item ->
                     if (editEquipment.contains(item)) editEquipment.remove(item)
@@ -250,7 +250,11 @@ private fun WorkoutInfoSection() {
     }
 }
 
-/** Small muted label above each workout-info field. */
+/**
+ * 1. What: Small muted label rendered above each workout-info field.
+ * 2. Who: Used by [WorkoutInfoSection] for the Goal, Days/week, and Equipment fields.
+ * 3. When: Always shown, in both the read-only and edit states.
+ */
 @Composable
 private fun FieldLabel(text: String) {
     Text(
@@ -260,7 +264,11 @@ private fun FieldLabel(text: String) {
     )
 }
 
-/** Read-only field value rendered as a bordered gray box. */
+/**
+ * 1. What: Read-only field value rendered as a bordered gray box.
+ * 2. Who: Used by [WorkoutInfoSection] to display a field's current value.
+ * 3. When: Shown for each field while not editing; the edit state swaps in inputs instead.
+ */
 @Composable
 private fun ValueBox(text: String) {
     Box(
@@ -323,10 +331,10 @@ private fun DropdownField(
 /**
  * 1. What: Wrap-flowing equipment toggle chips, mirroring the OnboardingScreen's chip set.
  * 2. Who: Used in [WorkoutInfoSection]'s edit mode.
- * 3. When: Tapping a chip calls [onToggle] for that item; [selected] drives the filled state.
+ * 3. When: Tapping a box calls [onToggle] for that item; [selected] drives the filled state.
  */
 @Composable
-private fun EquipmentChips(
+private fun EquipmentBox(
     selected: List<String>,
     onToggle: (String) -> Unit,
 ) {
@@ -369,4 +377,69 @@ private fun EquipmentChips(
 @Composable
 private fun AccountScreenPreview() {
     MyFitTheme { AccountScreen(onLogout = {}, onSelectTab = {}) }
+}
+
+/**
+ * 1. What: Design-time preview of the profile header card with a dummy name.
+ * 2. Who: Called by Android Studio's Compose preview renderer.
+ * 3. When: Rendered at design time in the IDE; never runs in the shipped app.
+ */
+@Preview(showBackground = true)
+@Composable
+private fun UserInfoCardPreview() {
+    MyFitTheme {
+        UserInfoCard(name = "Dalton Burkhart")
+    }
+}
+
+/**
+ * 1. What: Design-time preview of the editable "Workout info" section (read-only state).
+ * 2. Who: Called by Android Studio's Compose preview renderer.
+ * 3. When: Rendered at design time in the IDE; never runs in the shipped app.
+ */
+@Preview(showBackground = true)
+@Composable
+private fun WorkoutInfoSectionPreview() {
+    MyFitTheme {
+        WorkoutInfoSection()
+    }
+}
+
+/**
+ * 1. What: Design-time preview of a single dropdown field with dummy goal options.
+ * 2. Who: Called by Android Studio's Compose preview renderer.
+ * 3. When: Rendered at design time in the IDE; never runs in the shipped app.
+ */
+@Preview(showBackground = true)
+@Composable
+private fun DropdownFieldPreview() {
+    MyFitTheme {
+        DropdownField(value = GOAL_OPTIONS.first(), options = GOAL_OPTIONS, onSelect = {})
+    }
+}
+
+/**
+ * 1. What: Design-time preview of the equipment toggle chips with dummy selections.
+ * 2. Who: Called by Android Studio's Compose preview renderer.
+ * 3. When: Rendered at design time in the IDE; never runs in the shipped app.
+ */
+@Preview(showBackground = true)
+@Composable
+private fun EquipmentChipsPreview() {
+    MyFitTheme {
+        EquipmentBox(selected = PROFILE_EQUIPMENT, onToggle = {})
+    }
+}
+
+/**
+ * 1. What: Design-time preview of a read-only value box with dummy text.
+ * 2. Who: Called by Android Studio's Compose preview renderer.
+ * 3. When: Rendered at design time in the IDE; never runs in the shipped app.
+ */
+@Preview(showBackground = true)
+@Composable
+private fun ValueBoxPreview() {
+    MyFitTheme {
+        ValueBox(PROFILE_GOAL)
+    }
 }

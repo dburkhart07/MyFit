@@ -340,3 +340,55 @@ fun DailyWorkoutCard(workout: DailyWorkout) {
 private fun HistoryScreenPreview() {
     MyFitTheme { HistoryScreen(onLogout = {}, onSelectTab = {}) }
 }
+
+/**
+ * 1. What: Design-time preview of the week-list view with dummy week data.
+ * 2. Who: Called by Android Studio's Compose preview renderer.
+ * 3. When: Rendered at design time in the IDE; never runs in the shipped app.
+ */
+@Preview(showBackground = true)
+@Composable
+private fun WeekListViewPreview() {
+    MyFitTheme {
+        WeekListView(weeks = DUMMY_WEEKS, onWeekClick = {})
+    }
+}
+
+/**
+ * 1. What: Design-time preview of a single week summary card with dummy data.
+ * 2. Who: Called by Android Studio's Compose preview renderer.
+ * 3. When: Rendered at design time in the IDE; never runs in the shipped app.
+ */
+@Preview(showBackground = true)
+@Composable
+private fun WeekCardPreview() {
+    MyFitTheme {
+        WeekCard(week = DUMMY_WEEKS[0], onClick = {})
+    }
+}
+
+/**
+ * 1. What: Design-time preview of a week's detail view with dummy data.
+ * 2. Who: Called by Android Studio's Compose preview renderer.
+ * 3. When: Rendered at design time in the IDE; never runs in the shipped app.
+ */
+@Preview(showBackground = true)
+@Composable
+private fun WeekDetailViewPreview() {
+    MyFitTheme {
+        WeekDetailView(week = DUMMY_WEEKS[0], onBack = {})
+    }
+}
+
+/**
+ * 1. What: Design-time preview of a single daily-workout row with dummy data.
+ * 2. Who: Called by Android Studio's Compose preview renderer.
+ * 3. When: Rendered at design time in the IDE; never runs in the shipped app.
+ */
+@Preview(showBackground = true)
+@Composable
+private fun DailyWorkoutCardPreview() {
+    MyFitTheme {
+        DailyWorkoutCard(DailyWorkout("Mon", "Upper body", "5 / 5 exercises", completed = true))
+    }
+}

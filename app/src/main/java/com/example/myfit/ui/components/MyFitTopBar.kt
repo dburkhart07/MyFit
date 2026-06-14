@@ -20,7 +20,7 @@ import com.example.myfit.ui.theme.MyFitTheme
 
 /**
  * 1. What: Shared app top bar — "MyFit" on the left, a logout button on the right.
- * 2. Who: Called by every main screen's Scaffold (HomeScreen, HistoryScreen, AccountScreen).
+ * 2. Who: Called by every main screen's Scaffold (WorkoutsScreen, HistoryScreen, AccountScreen).
  * 3. When: Rendered as the top bar of those screens; the logout button signs the user out
  *    (Firebase sign-out via [AuthViewModel]) and then invokes [onLogout] to navigate away.
  */

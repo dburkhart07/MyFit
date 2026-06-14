@@ -8,7 +8,6 @@ import androidx.navigation.compose.rememberNavController
 import com.example.myfit.ui.account.AccountScreen
 import com.example.myfit.ui.components.BottomTab
 import com.example.myfit.ui.history.HistoryScreen
-import com.example.myfit.ui.home.HomeScreen
 import com.example.myfit.ui.login.LoginScreen
 import com.example.myfit.ui.login.SignupScreen
 import com.example.myfit.ui.onboarding.OnboardingScreen
@@ -19,10 +18,9 @@ import com.example.myfit.ui.workouts.WorkoutsScreen
 fun AppNavigation() {
     val navController = rememberNavController()
     // If a session already exists, skip straight to Home (session persistence).
-    val startDestination: Any = if (FirebaseAuth.getInstance().currentUser != null) Home else Login
+    val startDestination: Any = if (FirebaseAuth.getInstance().currentUser != null) Workouts else Login
 
     // Shared by every main screen's top-bar logout: clear the whole stack back to Login.
-    // (The Firebase sign-out itself happens in MyFitTopBar via AuthViewModel.)
     val onLogout: () -> Unit = {
         navController.navigate(Login) { popUpTo(0) { inclusive = true } }
     }
@@ -33,7 +31,7 @@ fun AppNavigation() {
             LoginScreen(
                 onNavigateToSignup = { navController.navigate(Signup) },
                 onLoginSuccess = {
-                    navController.navigate(Home) { popUpTo<Login> { inclusive = true } }
+                    navController.navigate(Workouts) { popUpTo<Login> { inclusive = true } }
                 },
             )
         }
@@ -41,7 +39,6 @@ fun AppNavigation() {
         composable<Signup> {
             SignupScreen(
                 onNavigateToLogin = { navController.popBackStack() },
-                // New accounts go through workout onboarding before reaching home.
                 onSignupSuccess = {
                     navController.navigate(Onboarding) { popUpTo<Login> { inclusive = true } }
                 },
@@ -51,12 +48,12 @@ fun AppNavigation() {
         composable<Onboarding> {
             OnboardingScreen(
                 onSubmit = {
-                    navController.navigate(Home) { popUpTo<Onboarding> { inclusive = true } }
+                    navController.navigate(Workouts) { popUpTo<Onboarding> { inclusive = true } }
                 },
             )
         }
 
-        composable<Home> {
+        composable<Workouts> {
             WorkoutsScreen(
                 onLogout = onLogout,
                 onSelectTab = navController::selectTab,
@@ -86,13 +83,13 @@ fun AppNavigation() {
  */
 private fun NavHostController.selectTab(tab: BottomTab) {
     val destination: Any = when (tab) {
-        BottomTab.Workouts -> Home
+        BottomTab.Workouts -> Workouts
         BottomTab.History -> History
         BottomTab.Account -> Account
     }
     navigate(destination) {
         // Keep Home as the back-stack anchor; saving/restoring state keeps each tab's scroll etc.
-        popUpTo(Home) { saveState = true }
+        popUpTo(Workouts) { saveState = true }
         launchSingleTop = true
         restoreState = true
     }

@@ -27,6 +27,7 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,19 +41,29 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.myfit.ui.theme.MyFitTheme
 
 private val GOAL_OPTIONS = listOf("Build muscle", "Lose weight", "General fitness", "Improve endurance")
 private val DAY_OPTIONS = (1..7).toList()
 private val EQUIPMENT_OPTIONS = listOf("Dumbbells", "Bodyweight", "Bands", "Barbell", "Kettlebell", "None")
 private val EXPERIENCE_OPTIONS = listOf("Beginner", "Intermediate", "Advanced", "Expert")
 
+/**
+ * 1. What: Onboarding screen — collects goal, days/week, equipment, and experience over a gradient
+ *          backdrop, then a confirmation dialog before the first plan is generated.
+ * 2. Who: Called by the app's NavHost (the Onboarding destination).
+ * 3. When: Shown once right after sign-up; tapping through the confirmation dialog invokes
+ *    [onSubmit], which routes to the Workouts tab. Selections are local dummy state for now.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OnboardingScreen(
@@ -66,7 +77,7 @@ fun OnboardingScreen(
     var experience by rememberSaveable { mutableStateOf(EXPERIENCE_OPTIONS.first()) }
     var showConfirm by rememberSaveable { mutableStateOf(false) }
 
-    Box(
+    Scaffold(
         modifier = Modifier
             .fillMaxSize()
             .background(
@@ -74,10 +85,12 @@ fun OnboardingScreen(
                     colors = listOf(colors.background, colors.surface, colors.background)
                 )
             ),
-    ) {
+        containerColor = Color.Transparent,
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(padding)
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
@@ -263,6 +276,11 @@ fun OnboardingScreen(
     }
 }
 
+/**
+ * 1. What: A read-only "select"-style dropdown backed by an [ExposedDropdownMenuBox].
+ * 2. Who: Used for the Goal and Days-per-week fields in [OnboardingScreen].
+ * 3. When: Tapping it expands the option list; picking an option calls [onSelect] and collapses.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DropdownField(
@@ -300,5 +318,31 @@ private fun DropdownField(
                 )
             }
         }
+    }
+}
+
+/**
+ * 1. What: Design-time preview of the Onboarding screen with an empty submit callback.
+ * 2. Who: Called by Android Studio's Compose preview renderer.
+ * 3. When: Rendered at design time in the IDE; never runs in the shipped app.
+ */
+@Preview(showBackground = true)
+@Composable
+private fun OnboardingScreenPreview() {
+    MyFitTheme {
+        OnboardingScreen(onSubmit = {})
+    }
+}
+
+/**
+ * 1. What: Design-time preview of a single dropdown field with dummy goal options.
+ * 2. Who: Called by Android Studio's Compose preview renderer.
+ * 3. When: Rendered at design time in the IDE; never runs in the shipped app.
+ */
+@Preview(showBackground = true)
+@Composable
+private fun DropdownFieldPreview() {
+    MyFitTheme {
+        DropdownField(value = GOAL_OPTIONS.first(), options = GOAL_OPTIONS, onSelect = {})
     }
 }

@@ -15,9 +15,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.myfit.ui.history.DailyWorkoutCard
 import com.example.myfit.ui.theme.Cyan500
+import com.example.myfit.ui.theme.MyFitTheme
 import com.example.myfit.ui.theme.Teal400
 
 /**
@@ -57,5 +59,31 @@ fun CompletionIcon(completed: Boolean) {
                 modifier = Modifier.size(16.dp),
             )
         }
+    }
+}
+
+/**
+ * 1. What: Design-time preview of the completed (gradient check) state.
+ * 2. Who: Called by Android Studio's Compose preview renderer.
+ * 3. When: Rendered at design time in the IDE; never runs in the shipped app.
+ */
+@Preview(showBackground = true)
+@Composable
+private fun CompletionIconCompletedPreview() {
+    MyFitTheme {
+        CompletionIcon(completed = true)
+    }
+}
+
+/**
+ * 1. What: Design-time preview of the missed (gray X) state.
+ * 2. Who: Called by Android Studio's Compose preview renderer.
+ * 3. When: Rendered at design time in the IDE; never runs in the shipped app.
+ */
+@Preview(showBackground = true)
+@Composable
+private fun CompletionIconMissedPreview() {
+    MyFitTheme {
+        CompletionIcon(completed = false)
     }
 }
