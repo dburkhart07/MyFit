@@ -15,13 +15,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.myfit.ui.theme.MyFitTheme
+import androidx.compose.material.icons.filled.FitnessCenter
 
 /**
  * The three destinations the bottom bar switches between. Swap the icons for
  * FitnessCenter / History if you add the material-icons-extended dependency.
  */
 enum class BottomTab(val label: String, val icon: ImageVector) {
-    Home("Home", Icons.Filled.Home),
+    Workouts("Workouts", Icons.Filled.FitnessCenter),
     History("History", Icons.Filled.AccessTime),
     Account("Account", Icons.Filled.Person),
 }
@@ -60,6 +61,5 @@ fun MyFitBottomBar(
 @Composable
 private fun MyFitBottomBarPreview() {
     MyFitTheme {
-        MyFitBottomBar(current = BottomTab.Home, onSelect = {})
-    }
+        MyFitBottomBar(current = BottomTab.Workouts, onSelect = {})    }
 }

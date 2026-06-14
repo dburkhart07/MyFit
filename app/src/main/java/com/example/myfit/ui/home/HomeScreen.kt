@@ -32,7 +32,7 @@ fun HomeScreen(
 ) {
     Scaffold(
         topBar = { MyFitTopBar(onLogout = onLogout) },
-        bottomBar = { MyFitBottomBar(current = BottomTab.Home, onSelect = onSelectTab) },
+        bottomBar = { MyFitBottomBar(current = BottomTab.Workouts, onSelect = onSelectTab) },
         containerColor = MaterialTheme.colorScheme.surface,
     ) { padding ->
         Column(
