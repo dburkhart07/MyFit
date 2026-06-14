@@ -29,7 +29,7 @@ enum class BottomTab(val label: String, val icon: ImageVector) {
 
 /**
  * 1. What: Reusable Material 3 bottom navigation bar showing the three app tabs.
- * 2. Who: Called by every main screen's Scaffold (WeeklyHomeScreen, HistoryScreen, AccountScreen).
+ * 2. Who: Called by every main screen's Scaffold (WorkoutsScreen, HistoryScreen, AccountScreen).
  * 3. When: Rendered as the bottom bar of those screens; onSelect fires when a tab is tapped.
  */
 @Composable
@@ -53,7 +53,7 @@ fun MyFitBottomBar(
 }
 
 /**
- * 1. What: Design-time preview of the bottom bar with the Home tab selected.
+ * 1. What: Design-time preview of the bottom bar with the Workouts tab selected.
  * 2. Who: Called by Android Studio's Compose preview renderer.
  * 3. When: Rendered at design time in the IDE; never runs in the shipped app.
  */

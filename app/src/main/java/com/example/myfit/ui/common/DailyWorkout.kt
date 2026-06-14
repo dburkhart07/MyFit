@@ -10,7 +10,6 @@ import com.example.myfit.ui.history.WeekHistory
 data class DailyWorkout(
     val day: String,
     val title: String,
-    /** e.g. "5 / 5 exercises", or "Missed" when [completed] is false. */
     val exercises: String,
     val completed: Boolean,
 )
