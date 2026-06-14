@@ -13,6 +13,7 @@ import com.example.myfit.ui.login.LoginScreen
 import com.example.myfit.ui.login.SignupScreen
 import com.example.myfit.ui.onboarding.OnboardingScreen
 import com.google.firebase.auth.FirebaseAuth
+import com.example.myfit.ui.workouts.WorkoutsScreen
 
 @Composable
 fun AppNavigation() {
@@ -56,7 +57,7 @@ fun AppNavigation() {
         }
 
         composable<Home> {
-            HomeScreen(
+            WorkoutsScreen(
                 onLogout = onLogout,
                 onSelectTab = navController::selectTab,
             )
@@ -85,7 +86,7 @@ fun AppNavigation() {
  */
 private fun NavHostController.selectTab(tab: BottomTab) {
     val destination: Any = when (tab) {
-        BottomTab.Home -> Home
+        BottomTab.Workouts -> Home
         BottomTab.History -> History
         BottomTab.Account -> Account
     }
