@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -33,6 +34,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -46,20 +48,27 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myfit.auth.AuthViewModel
+import com.example.myfit.model.Equipment
+import com.example.myfit.model.ExperienceLevel
+import com.example.myfit.model.Goal
+import com.example.myfit.model.OnboardingPreferences
 import com.example.myfit.ui.components.BottomTab
 import com.example.myfit.ui.components.MyFitBottomBar
 import com.example.myfit.ui.components.MyFitTopBar
+import com.example.myfit.ui.onboarding.OnboardingUiState
+import com.example.myfit.ui.onboarding.OnboardingViewModel
+import com.example.myfit.ui.onboarding.PreferencesUiState
 import com.example.myfit.ui.theme.MyFitTheme
 
-private const val PROFILE_GOAL = "Build muscle"
-private const val PROFILE_DAYS_PER_WEEK = 4
-private val PROFILE_EQUIPMENT = listOf("Dumbbells", "Bands")
 private const val PROFILE_STATS = "12 workouts · 3 wk streak"
-private val GOAL_OPTIONS = listOf("Build muscle", "Lose weight", "General fitness", "Improve endurance")
-private val DAYS_OPTIONS = (1..7).map { it.toString() }
-private val EQUIPMENT_OPTIONS = listOf("Dumbbells", "Bodyweight", "Bands", "Barbell", "Kettlebell", "None")
+private const val NOT_SET = "Not set"
+private val GOAL_OPTIONS = Goal.entries.map { it.label }
+private val DAYS_OPTIONS = OnboardingPreferences.DAYS_RANGE.map { it.toString() }
+private val EQUIPMENT_OPTIONS = Equipment.entries.map { it.label }
+private val EXPERIENCE_OPTIONS = ExperienceLevel.entries.map { it.label }
 
 /**
  * 1. What: Account tab — profile card plus an editable "Workout info" section.
@@ -72,7 +81,13 @@ fun AccountScreen(
     onLogout: () -> Unit,
     onSelectTab: (BottomTab) -> Unit,
     viewModel: AuthViewModel = viewModel(),
+    preferencesViewModel: OnboardingViewModel = viewModel(),
 ) {
+    val prefsState by preferencesViewModel.preferences.collectAsStateWithLifecycle()
+    val saveState by preferencesViewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) { preferencesViewModel.loadPreferences() }
+
     Scaffold(
         topBar = { MyFitTopBar(onLogout = onLogout) },
         bottomBar = { MyFitBottomBar(current = BottomTab.Account, onSelect = onSelectTab) },
@@ -93,7 +108,13 @@ fun AccountScreen(
                 color = MaterialTheme.colorScheme.onSurface,
             )
             UserInfoCard(name = viewModel.displayName)
-            WorkoutInfoSection()
+            WorkoutInfoSection(
+                state = prefsState,
+                saveState = saveState,
+                onRetry = { preferencesViewModel.loadPreferences() },
+                onSave = { prefs -> preferencesViewModel.savePreferences(prefs) },
+                onSaveHandled = { preferencesViewModel.resetState() },
+            )
         }
     }
 }
@@ -150,17 +171,38 @@ private fun UserInfoCard(name: String) {
 }
 
 /**
- * 1. What: The "Workout info" section — read-only fields with an Edit toggle into an edit form.
- * 2. Who: Rendered below the profile card in [AccountScreen].
- * 3. When: Edit reveals dropdowns/chips (mirroring onboarding); Cancel and Update both discard
- *    changes and return to the read-only view.
+ * 1. What: The "Workout info" section — shows the user's stored preferences pulled from
+ *    Firestore, with loading/error states and an Edit toggle into an edit form.
+ * 2. Who: Rendered below the profile card in [AccountScreen]; driven by [state].
+ * 3. When: Once loaded, displays the saved goal/days/equipment/experience. Edit reveals
+ *    dropdowns/chips (mirroring onboarding); Cancel and Update both return to the
+ *    read-only view (persisting the edit is not wired up yet).
  */
 @Composable
-private fun WorkoutInfoSection() {
+private fun WorkoutInfoSection(
+    state: PreferencesUiState,
+    saveState: OnboardingUiState,
+    onRetry: () -> Unit,
+    onSave: (OnboardingPreferences) -> Unit,
+    onSaveHandled: () -> Unit,
+) {
+    val prefs = (state as? PreferencesUiState.Loaded)?.preferences
+
     var isEditing by remember { mutableStateOf(false) }
-    var editGoal by remember { mutableStateOf(PROFILE_GOAL) }
-    var editDays by remember { mutableIntStateOf(PROFILE_DAYS_PER_WEEK) }
-    val editEquipment = remember { mutableStateListOf<String>().apply { addAll(PROFILE_EQUIPMENT) } }
+    var editGoal by remember { mutableStateOf(GOAL_OPTIONS.first()) }
+    var editDays by remember { mutableIntStateOf(DAYS_OPTIONS.first().toInt()) }
+    var editExperience by remember { mutableStateOf(EXPERIENCE_OPTIONS.first()) }
+    val editEquipment = remember { mutableStateListOf<String>() }
+
+    val isSaving = saveState is OnboardingUiState.Saving
+
+    // Once the save succeeds, leave edit mode and clear the transient save state.
+    LaunchedEffect(saveState) {
+        if (saveState is OnboardingUiState.Saved) {
+            isEditing = false
+            onSaveHandled()
+        }
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(
@@ -174,13 +216,15 @@ private fun WorkoutInfoSection() {
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
             )
-            if (!isEditing) {
+            // Editing only makes sense once the data has loaded.
+            if (prefs != null && !isEditing) {
                 TextButton(
                     onClick = {
-                        editGoal = PROFILE_GOAL
-                        editDays = PROFILE_DAYS_PER_WEEK
+                        editGoal = prefs.goal.label
+                        editDays = prefs.daysPerWeek
+                        editExperience = prefs.experience.label
                         editEquipment.clear()
-                        editEquipment.addAll(PROFILE_EQUIPMENT)
+                        editEquipment.addAll(prefs.equipment.map { it.label })
                         isEditing = true
                     },
                     contentPadding = PaddingValues(0.dp),
@@ -194,58 +238,143 @@ private fun WorkoutInfoSection() {
             }
         }
 
-        FieldLabel("Goal")
-        if (isEditing) {
-            DropdownField(value = editGoal, options = GOAL_OPTIONS, onSelect = { editGoal = it })
-        } else {
-            ValueBox(PROFILE_GOAL)
-        }
+        when (state) {
+            is PreferencesUiState.Loading -> LoadingBox()
 
-        FieldLabel("Days / week")
-        if (isEditing) {
-            DropdownField(
-                value = editDays.toString(),
-                options = DAYS_OPTIONS,
-                onSelect = { editDays = it.toInt() },
-            )
-        } else {
-            ValueBox(PROFILE_DAYS_PER_WEEK.toString())
-        }
+            is PreferencesUiState.Error -> ErrorBox(message = state.message, onRetry = onRetry)
 
-        FieldLabel("Equipment")
-        if (isEditing) {
-            EquipmentBox(
-                selected = editEquipment,
-                onToggle = { item ->
-                    if (editEquipment.contains(item)) editEquipment.remove(item)
-                    else editEquipment.add(item)
-                },
-            )
-        } else {
-            ValueBox(PROFILE_EQUIPMENT.joinToString(", "))
-        }
-
-        if (isEditing) {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedButton(
-                    onClick = { isEditing = false },
-                    modifier = Modifier.weight(1f),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = MaterialTheme.colorScheme.onSurface,
-                    ),
-                ) {
-                    Text("Cancel", fontWeight = FontWeight.SemiBold)
+            is PreferencesUiState.Loaded -> {
+                FieldLabel("Goal")
+                if (isEditing) {
+                    DropdownField(value = editGoal, options = GOAL_OPTIONS, onSelect = { editGoal = it })
+                } else {
+                    ValueBox(prefs?.goal?.label ?: NOT_SET)
                 }
-                // TODO: Update logic on submission
-                Button(
-                    onClick = { isEditing = false },
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text("Update info", fontWeight = FontWeight.SemiBold)
+
+                FieldLabel("Days / week")
+                if (isEditing) {
+                    DropdownField(
+                        value = editDays.toString(),
+                        options = DAYS_OPTIONS,
+                        onSelect = { editDays = it.toInt() },
+                    )
+                } else {
+                    ValueBox(prefs?.daysPerWeek?.toString() ?: NOT_SET)
+                }
+
+                FieldLabel("Equipment")
+                if (isEditing) {
+                    EquipmentBox(
+                        selected = editEquipment,
+                        onToggle = { item ->
+                            if (editEquipment.contains(item)) editEquipment.remove(item)
+                            else editEquipment.add(item)
+                        },
+                    )
+                } else {
+                    ValueBox(prefs?.equipment?.joinToString(", ") { it.label } ?: NOT_SET)
+                }
+
+                FieldLabel("Experience")
+                if (isEditing) {
+                    DropdownField(
+                        value = editExperience,
+                        options = EXPERIENCE_OPTIONS,
+                        onSelect = { editExperience = it },
+                    )
+                } else {
+                    ValueBox(prefs?.experience?.label ?: NOT_SET)
+                }
+
+                if (isEditing) {
+                    if (saveState is OnboardingUiState.Error) {
+                        Text(
+                            text = saveState.message,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedButton(
+                            onClick = {
+                                isEditing = false
+                                onSaveHandled()
+                            },
+                            enabled = !isSaving,
+                            modifier = Modifier.weight(1f),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = MaterialTheme.colorScheme.onSurface,
+                            ),
+                        ) {
+                            Text("Cancel", fontWeight = FontWeight.SemiBold)
+                        }
+                        Button(
+                            onClick = {
+                                onSave(
+                                    OnboardingPreferences(
+                                        goal = Goal.fromLabel(editGoal) ?: Goal.entries.first(),
+                                        daysPerWeek = editDays,
+                                        equipment = editEquipment.mapNotNull { Equipment.fromLabel(it) }
+                                            .ifEmpty { listOf(Equipment.NONE) },
+                                        experience = ExperienceLevel.fromLabel(editExperience)
+                                            ?: ExperienceLevel.entries.first(),
+                                    )
+                                )
+                            },
+                            enabled = !isSaving,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            if (isSaving) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    strokeWidth = 2.dp,
+                                )
+                            } else {
+                                Text("Update info", fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
                 }
             }
+        }
+    }
+}
+
+/**
+ * 1. What: Centered spinner shown while the stored preferences are being fetched.
+ * 2. Who: Rendered by [WorkoutInfoSection] in its Loading state.
+ * 3. When: Between the screen appearing and Firestore returning the user's document.
+ */
+@Composable
+private fun LoadingBox() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 24.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        CircularProgressIndicator(modifier = Modifier.size(28.dp))
+    }
+}
+
+/**
+ * 1. What: Error message plus a Retry action shown when the preferences fail to load.
+ * 2. Who: Rendered by [WorkoutInfoSection] in its Error state.
+ * 3. When: When the Firestore read fails (e.g. no signed-in user or network error).
+ */
+@Composable
+private fun ErrorBox(message: String, onRetry: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(text = message, color = MaterialTheme.colorScheme.error)
+        TextButton(onClick = onRetry, contentPadding = PaddingValues(0.dp)) {
+            Text(
+                text = "Retry",
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.secondary,
+            )
         }
     }
 }
@@ -401,7 +530,20 @@ private fun UserInfoCardPreview() {
 @Composable
 private fun WorkoutInfoSectionPreview() {
     MyFitTheme {
-        WorkoutInfoSection()
+        WorkoutInfoSection(
+            state = PreferencesUiState.Loaded(
+                OnboardingPreferences(
+                    goal = Goal.BUILD_MUSCLE,
+                    daysPerWeek = 4,
+                    equipment = listOf(Equipment.DUMBBELLS, Equipment.BANDS),
+                    experience = ExperienceLevel.INTERMEDIATE,
+                )
+            ),
+            saveState = OnboardingUiState.Idle,
+            onRetry = {},
+            onSave = {},
+            onSaveHandled = {},
+        )
     }
 }
 
@@ -427,7 +569,7 @@ private fun DropdownFieldPreview() {
 @Composable
 private fun EquipmentChipsPreview() {
     MyFitTheme {
-        EquipmentBox(selected = PROFILE_EQUIPMENT, onToggle = {})
+        EquipmentBox(selected = listOf("Dumbbells", "Bands"), onToggle = {})
     }
 }
 
@@ -440,6 +582,6 @@ private fun EquipmentChipsPreview() {
 @Composable
 private fun ValueBoxPreview() {
     MyFitTheme {
-        ValueBox(PROFILE_GOAL)
+        ValueBox(Goal.BUILD_MUSCLE.label)
     }
 }

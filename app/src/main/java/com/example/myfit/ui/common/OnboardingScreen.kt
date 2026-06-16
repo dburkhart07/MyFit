@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -31,6 +32,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,12 +52,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.myfit.model.Equipment
+import com.example.myfit.model.ExperienceLevel
+import com.example.myfit.model.Goal
+import com.example.myfit.model.OnboardingPreferences
 import com.example.myfit.ui.theme.MyFitTheme
 
-private val GOAL_OPTIONS = listOf("Build muscle", "Lose weight", "General fitness", "Improve endurance")
-private val DAY_OPTIONS = (1..7).toList()
-private val EQUIPMENT_OPTIONS = listOf("Dumbbells", "Bodyweight", "Bands", "Barbell", "Kettlebell", "None")
-private val EXPERIENCE_OPTIONS = listOf("Beginner", "Intermediate", "Advanced", "Expert")
+// Option lists are derived from the strict domain enums so the UI and the persisted
+// data share a single source of truth.
+private val GOAL_OPTIONS = Goal.entries.map { it.label }
+private val DAY_OPTIONS = OnboardingPreferences.DAYS_RANGE.toList()
+private val EQUIPMENT_OPTIONS = Equipment.entries.map { it.label }
+private val EXPERIENCE_OPTIONS = ExperienceLevel.entries.map { it.label }
 
 /**
  * 1. What: Onboarding screen — collects goal, days/week, equipment, and experience over a gradient
@@ -68,14 +78,21 @@ private val EXPERIENCE_OPTIONS = listOf("Beginner", "Intermediate", "Advanced", 
 @Composable
 fun OnboardingScreen(
     onSubmit: () -> Unit,
+    viewModel: OnboardingViewModel = viewModel(),
 ) {
     val colors = MaterialTheme.colorScheme
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val isSaving = uiState is OnboardingUiState.Saving
 
     var goal by rememberSaveable { mutableStateOf(GOAL_OPTIONS.first()) }
     var daysPerWeek by rememberSaveable { mutableStateOf(4) }
-    val equipment = remember { mutableStateListOf("Dumbbells") }
+    val equipment = remember { mutableStateListOf(Equipment.DUMBBELLS.label) }
     var experience by rememberSaveable { mutableStateOf(EXPERIENCE_OPTIONS.first()) }
     var showConfirm by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(uiState) {
+        if (uiState is OnboardingUiState.Saved) onSubmit()
+    }
 
     Scaffold(
         modifier = Modifier
@@ -254,22 +271,43 @@ fun OnboardingScreen(
                 )
             },
             text = {
+                val message = (uiState as? OnboardingUiState.Error)?.message
+                    ?: "Your first week is ready."
                 Text(
-                    text = "Your first week is ready.",
+                    text = message,
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = TextAlign.Center,
                 )
             },
             confirmButton = {
                 Button(
-                    // TODO: persist the onboarding selections to the backend here before navigating.
-                    onClick = onSubmit,
+                    onClick = {
+                        viewModel.savePreferences(
+                            OnboardingPreferences(
+                                goal = Goal.fromLabel(goal) ?: Goal.entries.first(),
+                                daysPerWeek = daysPerWeek,
+                                equipment = equipment.mapNotNull { Equipment.fromLabel(it) }
+                                    .ifEmpty { listOf(Equipment.NONE) },
+                                experience = ExperienceLevel.fromLabel(experience)
+                                    ?: ExperienceLevel.entries.first(),
+                            )
+                        )
+                    },
+                    enabled = !isSaving,
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp),
                 ) {
-                    Text("Go to home page", fontWeight = FontWeight.SemiBold)
+                    if (isSaving) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = colors.onPrimary,
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
+                        Text("Go to home page", fontWeight = FontWeight.SemiBold)
+                    }
                 }
             },
         )
