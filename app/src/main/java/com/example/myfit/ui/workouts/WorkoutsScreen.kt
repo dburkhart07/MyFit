@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -25,6 +26,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -35,18 +37,25 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.myfit.data.MockWorkoutGenerator
+import com.example.myfit.model.DayPlan
+import com.example.myfit.model.Exercise
+import com.example.myfit.model.WorkoutPlan
 import com.example.myfit.ui.components.BottomTab
 import com.example.myfit.ui.components.CompletionIcon
 import com.example.myfit.ui.components.MyFitBottomBar
@@ -71,62 +80,99 @@ private class ExerciseRowState(
 }
 
 /**
- * 1. What: Workouts tab — shows this week's plan. Workout days open an in-screen detail view;
- *          rest days can add a workout; workout days can be swapped or deleted. Mirrors the
- *          History tab's list/detail state toggle (no extra nav route needed).
- * 2. Who: Called by the app's NavHost (the Home/Workouts destination).
+ * 1. What: Workouts tab — loads the user's AI-generated weekly plan from the ViewModel and shows
+ *          loading / generating / error / loaded states. Loaded shows the weekly plan; workout
+ *          days open an in-screen detail (Begin → check off → Complete); rest days can add a
+ *          workout; workout days can be swapped or deleted. Edits persist via the ViewModel.
+ * 2. Who: Called by the app's NavHost (the Workouts destination).
  * 3. When: Shown after login/onboarding and whenever the Workouts tab is selected.
- *
- * Week state is held locally for this dummy-data pass. When the backend lands, lift `week` into a
- * ViewModel (Topic 06) and replace the in-place edits with repository calls.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkoutsScreen(
     onLogout: () -> Unit,
     onSelectTab: (BottomTab) -> Unit,
+    viewModel: WorkoutsViewModel = viewModel(),
 ) {
-    val week = remember { WorkoutMockData.week.toMutableStateList() }
-    var selectedDay by remember { mutableStateOf<Int?>(null) }
-    var swapForIndex by remember { mutableStateOf<Int?>(null) }
-    var deleteForIndex by remember { mutableStateOf<Int?>(null) }
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) { viewModel.load() }
 
     Scaffold(
         topBar = { MyFitTopBar(onLogout = onLogout) },
         bottomBar = { MyFitBottomBar(current = BottomTab.Workouts, onSelect = onSelectTab) },
         containerColor = MaterialTheme.colorScheme.surface,
     ) { padding ->
-        val sel = selectedDay
-        if (sel == null) {
-            WeeklyPlanView(
-                week = week,
-                onOpen = { i -> if (!week[i].isRest) selectedDay = i },
-                onSwap = { swapForIndex = it },
-                onDelete = { deleteForIndex = it },
-                onAdd = { i -> week[i] = WorkoutMockData.newWorkoutFor(week[i].day) },
-                onConfirm = { /* Dummy data for now — wire to the backend later. */ },
-                modifier = Modifier.padding(padding),
-            )
-        } else {
-            WorkoutDetailView(
-                dayPlan = week[sel],
-                onBack = { selectedDay = null },
-                modifier = Modifier.padding(padding),
-            )
+        val modifier = Modifier.padding(padding)
+        when (val state = uiState) {
+            is WorkoutsUiState.Loading ->
+                StatusBox(message = "Loading your plan…", modifier = modifier)
+
+            is WorkoutsUiState.Generating ->
+                StatusBox(message = "Building your plan…", modifier = modifier)
+
+            is WorkoutsUiState.Error ->
+                ErrorBox(message = state.message, onRetry = { viewModel.load() }, modifier = modifier)
+
+            is WorkoutsUiState.Loaded ->
+                LoadedContent(
+                    plan = state.plan,
+                    onUpdateDay = viewModel::updateDay,
+                    onRegenerate = viewModel::generate,
+                    modifier = modifier,
+                )
         }
+    }
+}
+
+/**
+ * 1. What: Stateful host for the loaded plan — owns selected-day, swap/delete dialog state, and
+ *          dispatches edits up to the ViewModel.
+ * 2. Who: Rendered by [WorkoutsScreen] in the Loaded state.
+ * 3. When: Once a plan is available.
+ */
+@Composable
+private fun LoadedContent(
+    plan: WorkoutPlan,
+    onUpdateDay: (Int, DayPlan) -> Unit,
+    onRegenerate: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var selectedDay by remember { mutableStateOf<Int?>(null) }
+    var swapForIndex by remember { mutableStateOf<Int?>(null) }
+    var deleteForIndex by remember { mutableStateOf<Int?>(null) }
+    val days = plan.days
+
+    val sel = selectedDay
+    if (sel == null) {
+        WeeklyPlanView(
+            week = days,
+            onOpen = { i -> if (!days[i].isRest) selectedDay = i },
+            onSwap = { swapForIndex = it },
+            onDelete = { deleteForIndex = it },
+            onAdd = { i -> onUpdateDay(i, newWorkoutFor(days[i].day)) },
+            onRegenerate = onRegenerate,
+            modifier = modifier,
+        )
+    } else {
+        WorkoutDetailView(
+            dayPlan = days[sel],
+            onBack = { selectedDay = null },
+            modifier = modifier,
+        )
     }
 
     // Swap dialog — trade this day's workout with another day.
     swapForIndex?.let { i ->
         SwapDialog(
-            sourceDay = week[i].day,
-            options = week.indices.filter { it != i }.map { it to week[it] },
+            sourceDay = days[i].day,
+            options = days.indices.filter { it != i }.map { it to days[it] },
             onDismiss = { swapForIndex = null },
             onPick = { target ->
-                val a = week[i]
-                val b = week[target]
-                week[i] = a.copy(focus = b.focus, isRest = b.isRest, exercises = b.exercises)
-                week[target] = b.copy(focus = a.focus, isRest = a.isRest, exercises = a.exercises)
+                val a = days[i]
+                val b = days[target]
+                onUpdateDay(i, a.copy(focus = b.focus, isRest = b.isRest, exercises = b.exercises))
+                onUpdateDay(target, b.copy(focus = a.focus, isRest = a.isRest, exercises = a.exercises))
                 swapForIndex = null
             },
         )
@@ -134,7 +180,7 @@ fun WorkoutsScreen(
 
     // Delete confirmation — turns the day into a rest day.
     deleteForIndex?.let { i ->
-        val day = week[i]
+        val day = days[i]
         val colors = MaterialTheme.colorScheme
         AlertDialog(
             onDismissRequest = { deleteForIndex = null },
@@ -148,7 +194,7 @@ fun WorkoutsScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        week[i] = day.copy(focus = "Rest", isRest = true, exercises = emptyList())
+                        onUpdateDay(i, day.copy(focus = "Rest", isRest = true, exercises = emptyList()))
                         deleteForIndex = null
                     },
                     shape = RoundedCornerShape(8.dp),
@@ -163,9 +209,75 @@ fun WorkoutsScreen(
 }
 
 /**
- * 1. What: The weekly list of day cards plus the "Confirm weekly workout" button.
- * 2. Who: Rendered by [WorkoutsScreen] when no day is selected.
- * 3. When: The default state of the Workouts tab.
+ * 1. What: Builds a default workout for a day that was previously a rest day (UI-side add).
+ * 2. Who: Used by [LoadedContent] when the user taps "Add a workout".
+ * 3. When: On the add action; the ViewModel then persists the change.
+ */
+private fun newWorkoutFor(day: String) = DayPlan(
+    day = day,
+    focus = "New workout",
+    isRest = false,
+    exercises = listOf(
+        Exercise("Bench press", 3, 10),
+        Exercise("Rows", 3, 12),
+        Exercise("Shoulder press", 3, 10),
+        Exercise("Bicep curls", 3, 12),
+    ),
+)
+
+/**
+ * 1. What: Centered status box with a spinner and a message (Loading / Generating states).
+ * 2. Who: Rendered by [WorkoutsScreen].
+ * 3. When: While the plan is being read from Firestore or generated by the AI.
+ */
+@Composable
+private fun StatusBox(message: String, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        CircularProgressIndicator()
+        Spacer(Modifier.height(16.dp))
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/**
+ * 1. What: Error message plus a Retry action.
+ * 2. Who: Rendered by [WorkoutsScreen] in the Error state.
+ * 3. When: When loading or generating the plan fails.
+ */
+@Composable
+private fun ErrorBox(message: String, onRetry: () -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.error,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(16.dp))
+        Button(onClick = onRetry, shape = RoundedCornerShape(8.dp)) {
+            Text("Retry", fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+/**
+ * 1. What: The weekly list of day cards plus a "Regenerate plan" button.
+ * 2. Who: Rendered by [LoadedContent] when no day is selected.
+ * 3. When: The default state of the Workouts tab once a plan is loaded.
  */
 @Composable
 private fun WeeklyPlanView(
@@ -174,7 +286,7 @@ private fun WeeklyPlanView(
     onSwap: (Int) -> Unit,
     onDelete: (Int) -> Unit,
     onAdd: (Int) -> Unit,
-    onConfirm: () -> Unit,
+    onRegenerate: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -200,14 +312,14 @@ private fun WeeklyPlanView(
             )
         }
         item {
-            Button(
-                onClick = onConfirm,
+            OutlinedButton(
+                onClick = onRegenerate,
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
             ) {
-                Text("Confirm weekly workout", fontWeight = FontWeight.SemiBold)
+                Text("Regenerate plan", fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -294,7 +406,7 @@ private fun DayPlanCard(
 
 /**
  * 1. What: Dialog listing the other days so the user can pick one to swap this day's workout with.
- * 2. Who: Shown by [WorkoutsScreen].
+ * 2. Who: Shown by [LoadedContent].
  * 3. When: When the user taps "Swap" on a workout day; dismissed on pick or cancel.
  */
 @Composable
@@ -331,7 +443,7 @@ private fun SwapDialog(
 /**
  * 1. What: The detail for one day's workout — read-only until "Begin workout", then editable
  *          sets/reps with checkboxes, ending in a completion summary.
- * 2. Who: Rendered by [WorkoutsScreen] when a workout day is selected.
+ * 2. Who: Rendered by [LoadedContent] when a workout day is selected.
  * 3. When: After tapping a workout day; "Complete workout" and the back button both return to
  *    the weekly list.
  */
@@ -616,15 +728,24 @@ private fun AlterWorkoutDialog(
     )
 }
 
+/* ----------------------------- Previews ----------------------------- */
+// Previews use MockWorkoutGenerator (pure Kotlin, no network/ViewModel) so they render cleanly.
+
 /**
- * 1. What: Design-time preview of the Workouts tab (weekly plan).
+ * 1. What: Design-time preview of the loaded weekly plan.
  * 2. Who: Called by Android Studio's Compose preview renderer.
  * 3. When: Rendered at design time in the IDE; never runs in the shipped app.
  */
 @Preview(showBackground = true)
 @Composable
-private fun WorkoutsScreenPreview() {
-    MyFitTheme { WorkoutsScreen(onLogout = {}, onSelectTab = {}) }
+private fun LoadedContentPreview() {
+    MyFitTheme {
+        LoadedContent(
+            plan = MockWorkoutGenerator.generate(trainingDays = 4),
+            onUpdateDay = { _, _ -> },
+            onRegenerate = {},
+        )
+    }
 }
 
 /**
@@ -636,24 +757,9 @@ private fun WorkoutsScreenPreview() {
 @Composable
 private fun DayPlanCardPreview() {
     MyFitTheme {
-        DayPlanCard(day = WorkoutMockData.week[0], onOpen = {}, onSwap = {}, onDelete = {}, onAdd = {})
-    }
-}
-
-/**
- * 1. What: Design-time preview of the swap-day dialog.
- * 2. Who: Called by Android Studio's Compose preview renderer.
- * 3. When: Rendered at design time in the IDE; never runs in the shipped app.
- */
-@Preview(showBackground = true)
-@Composable
-private fun SwapDialogPreview() {
-    MyFitTheme {
-        SwapDialog(
-            sourceDay = "Mon",
-            options = WorkoutMockData.week.drop(1).mapIndexed { i, d -> (i + 1) to d },
-            onDismiss = {},
-            onPick = {},
+        DayPlanCard(
+            day = MockWorkoutGenerator.generate().days.first { !it.isRest },
+            onOpen = {}, onSwap = {}, onDelete = {}, onAdd = {},
         )
     }
 }
@@ -667,7 +773,10 @@ private fun SwapDialogPreview() {
 @Composable
 private fun WorkoutDetailViewPreview() {
     MyFitTheme {
-        WorkoutDetailView(dayPlan = WorkoutMockData.week[0], onBack = {})
+        WorkoutDetailView(
+            dayPlan = MockWorkoutGenerator.generate().days.first { !it.isRest },
+            onBack = {},
+        )
     }
 }
 

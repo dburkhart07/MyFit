@@ -68,4 +68,5 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     implementation(libs.androidx.compose.material.icons.extended)
+    implementation(libs.firebase.ai)
 }
