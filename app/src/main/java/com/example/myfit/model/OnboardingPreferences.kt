@@ -52,10 +52,14 @@ enum class Goal(val label: String) {
  */
 enum class Equipment(val label: String) {
     DUMBBELLS("Dumbbells"),
-    BODYWEIGHT("Bodyweight"),
-    BANDS("Bands"),
     BARBELL("Barbell"),
     KETTLEBELL("Kettlebell"),
+    BENCH("Bench"),
+    BANDS("Bands"),
+    PULL_UP_BAR("Pull-up bar"),
+    CABLE_MACHINE("Cable machine"),
+    BODYWEIGHT("Bodyweight"),
+    FULL_GYM("Full gym"),
     NONE("None");
 
     companion object {
