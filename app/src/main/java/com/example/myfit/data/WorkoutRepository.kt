@@ -33,7 +33,7 @@ interface WorkoutRepository {
 
     /**
      * 1. What: Generates a fresh plan from the user's preferences (falling back to a mock if the
-     *    AI call fails), saves it, and returns it.
+     *    AI call fails), stamps it with the current time, saves it, and returns it.
      * 2. Who: Implemented by [WorkoutRepositoryImpl]; called by WorkoutsViewModel.
      * 3. When: When there's no saved plan, or the user taps "regenerate".
      */
@@ -46,7 +46,8 @@ interface WorkoutRepository {
  * profile/preferences fields written elsewhere — exactly the pattern in [OnboardingRepositoryImpl].
  *
  * Generation delegates to a [WorkoutGenerator] (Gemini) and falls back to [MockWorkoutGenerator]
- * if that fails, so the user always ends up with a usable plan.
+ * if that fails, so the user always ends up with a usable plan. The saved plan carries a
+ * `generatedAt` timestamp so the UI can detect when a week has elapsed.
  */
 class WorkoutRepositoryImpl(
     private val firebaseAuth: FirebaseAuth = FirebaseAuth.getInstance(),
@@ -93,9 +94,11 @@ class WorkoutRepositoryImpl(
                 MockWorkoutGenerator.generate()
             }
 
-            // Persist whatever we ended up with (AI or mock) and return it.
-            savePlan(plan)
-            Result.success(plan)
+            // Stamp with the current time so the UI can tell when a week has passed, then persist
+            // whatever we ended up with (AI or mock) and return the stamped plan.
+            val stamped = plan.copy(generatedAt = System.currentTimeMillis())
+            savePlan(stamped)
+            Result.success(stamped)
         } catch (e: Exception) {
             Result.failure(e)
         }

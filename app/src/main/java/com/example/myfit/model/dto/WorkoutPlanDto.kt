@@ -12,6 +12,7 @@ package com.example.myfit.model.dto
  */
 data class WorkoutPlanDto(
     val days: List<DayPlanDto> = emptyList(),
+    val generatedAt: Long = 0L,
 )
 
 /**
@@ -36,3 +37,4 @@ data class ExerciseDto(
     val sets: Int = 0,
     val reps: Int = 0,
 )
+

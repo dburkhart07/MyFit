@@ -9,8 +9,12 @@ import com.example.myfit.model.dto.WorkoutPlanDto
 
 /**
  * Mappings between the strict [WorkoutPlan] domain model and the Firestore-friendly
- * [WorkoutPlanDto]. Domain → DTO is total, DTO → domain
- * returns null when the stored data can't form a valid domain object.
+ * [WorkoutPlanDto]. Domain → DTO is total; DTO → domain returns null when the stored data can't
+ * form a valid domain object (so a malformed/legacy document is treated as "no plan").
+ *
+ * Note: the DTO field is named [DayPlanDto.restDay] (NOT isRest). Firestore's reflection mapper
+ * strips the "is" prefix from Boolean getters, so an `isRest` field round-trips under the key
+ * "rest" and fails to deserialize. Using `restDay` avoids that. The domain model keeps `isRest`.
  */
 
 /**
@@ -27,6 +31,7 @@ fun WorkoutPlan.toDto(): WorkoutPlanDto = WorkoutPlanDto(
             exercises = day.exercises.map { ExerciseDto(it.name, it.sets, it.reps) },
         )
     },
+    generatedAt = generatedAt,
 )
 
 /**
@@ -39,7 +44,7 @@ fun WorkoutPlan.toDto(): WorkoutPlanDto = WorkoutPlanDto(
  */
 fun WorkoutPlanDto.toDomain(): WorkoutPlan? = runCatching {
     val mappedDays = days.map { it.toDomain() ?: return null }
-    WorkoutPlan(days = mappedDays)
+    WorkoutPlan(days = mappedDays, generatedAt = generatedAt)
 }.getOrNull()
 
 /**

@@ -13,15 +13,19 @@ package com.example.myfit.model
  */
 data class WorkoutPlan(
     val days: List<DayPlan>,
+    val generatedAt: Long = 0L,
 ) {
     init {
         require(days.size == DAYS_IN_WEEK) { "a plan must have exactly $DAYS_IN_WEEK days, was ${days.size}" }
     }
 
+    val isStale: Boolean
+        get() = generatedAt > 0L &&
+                System.currentTimeMillis() - generatedAt > SEVEN_DAYS_MILLIS
+
     companion object {
         const val DAYS_IN_WEEK = 7
-
-        /** Canonical day labels, in order. The generator must return these exact strings. */
+        const val SEVEN_DAYS_MILLIS = 7L * 24 * 60 * 60 * 1000
         val DAY_ORDER = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
     }
 }

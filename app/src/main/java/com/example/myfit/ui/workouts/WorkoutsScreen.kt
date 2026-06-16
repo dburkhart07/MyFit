@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -83,7 +82,8 @@ private class ExerciseRowState(
  * 1. What: Workouts tab — loads the user's AI-generated weekly plan from the ViewModel and shows
  *          loading / generating / error / loaded states. Loaded shows the weekly plan; workout
  *          days open an in-screen detail (Begin → check off → Complete); rest days can add a
- *          workout; workout days can be swapped or deleted. Edits persist via the ViewModel.
+ *          workout; workout days can be swapped or deleted. A "new week" banner appears when the
+ *          plan is over 7 days old. Edits persist via the ViewModel.
  * 2. Who: Called by the app's NavHost (the Workouts destination).
  * 3. When: Shown after login/onboarding and whenever the Workouts tab is selected.
  */
@@ -147,6 +147,7 @@ private fun LoadedContent(
     if (sel == null) {
         WeeklyPlanView(
             week = days,
+            isStale = plan.isStale,
             onOpen = { i -> if (!days[i].isRest) selectedDay = i },
             onSwap = { swapForIndex = it },
             onDelete = { deleteForIndex = it },
@@ -275,13 +276,15 @@ private fun ErrorBox(message: String, onRetry: () -> Unit, modifier: Modifier = 
 }
 
 /**
- * 1. What: The weekly list of day cards plus a "Regenerate plan" button.
+ * 1. What: The weekly list of day cards, an optional "new week" banner at the top, and a
+ *          "Regenerate plan" button.
  * 2. Who: Rendered by [LoadedContent] when no day is selected.
  * 3. When: The default state of the Workouts tab once a plan is loaded.
  */
 @Composable
 private fun WeeklyPlanView(
     week: List<DayPlan>,
+    isStale: Boolean,
     onOpen: (Int) -> Unit,
     onSwap: (Int) -> Unit,
     onDelete: (Int) -> Unit,
@@ -294,6 +297,9 @@ private fun WeeklyPlanView(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        if (isStale) {
+            item { NewWeekBanner(onRegenerate = onRegenerate) }
+        }
         item {
             Text(
                 text = "This week",
@@ -321,6 +327,38 @@ private fun WeeklyPlanView(
             ) {
                 Text("Regenerate plan", fontWeight = FontWeight.SemiBold)
             }
+        }
+    }
+}
+
+/**
+ * 1. What: "New week" banner prompting the user to generate a fresh plan once theirs is stale.
+ * 2. Who: Rendered at the top of [WeeklyPlanView] when the plan is over 7 days old.
+ * 3. When: Only when [WorkoutPlan.isStale] is true; tapping the button regenerates the plan.
+ */
+@Composable
+private fun NewWeekBanner(onRegenerate: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(colors.surfaceVariant)
+            .border(1.dp, colors.outline, RoundedCornerShape(12.dp))
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = "New week! Your plan is from last week.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = colors.onSurface,
+        )
+        Button(
+            onClick = onRegenerate,
+            shape = RoundedCornerShape(8.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Generate a fresh plan", fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -742,6 +780,23 @@ private fun LoadedContentPreview() {
     MyFitTheme {
         LoadedContent(
             plan = MockWorkoutGenerator.generate(trainingDays = 4),
+            onUpdateDay = { _, _ -> },
+            onRegenerate = {},
+        )
+    }
+}
+
+/**
+ * 1. What: Design-time preview of the weekly plan with the stale "new week" banner showing.
+ * 2. Who: Called by Android Studio's Compose preview renderer.
+ * 3. When: Rendered at design time in the IDE; never runs in the shipped app.
+ */
+@Preview(showBackground = true)
+@Composable
+private fun StaleWeeklyPlanPreview() {
+    MyFitTheme {
+        LoadedContent(
+            plan = MockWorkoutGenerator.generate(trainingDays = 4).copy(generatedAt = 1L),
             onUpdateDay = { _, _ -> },
             onRegenerate = {},
         )
