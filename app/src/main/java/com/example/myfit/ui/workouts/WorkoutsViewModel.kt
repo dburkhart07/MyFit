@@ -23,6 +23,12 @@ sealed interface WorkoutsUiState {
     data object Generating : WorkoutsUiState
 
     /**
+     * No plan exists yet (a first-time user). The UI prompts them with the same "New week!" modal a
+     * returning user gets at week's end, rather than silently generating one.
+     */
+    data object NeedsPlan : WorkoutsUiState
+
+    /**
      * The loaded plan. [adjustingDayIndex] is non-null while that day's difficulty is being
      * re-prompted, so the detail view can show a localized spinner and disable its buttons without
      * tearing down to the global Generating state.
@@ -46,7 +52,8 @@ class WorkoutsViewModel(
     val uiState: StateFlow<WorkoutsUiState> = _uiState.asStateFlow()
 
     /**
-     * 1. What: Loads the saved plan; if there isn't one, kicks off generation instead.
+     * 1. What: Loads the saved plan; if there isn't one, moves to [WorkoutsUiState.NeedsPlan] so the
+     *    UI prompts the user to generate their first week (instead of generating silently).
      * 2. Who: Called by WorkoutsScreen.
      * 3. When: When the screen first appears, and on retry after an error.
      */
@@ -55,11 +62,8 @@ class WorkoutsViewModel(
         viewModelScope.launch {
             repository.getPlan()
                 .onSuccess { plan ->
-                    if (plan != null) {
-                        _uiState.value = WorkoutsUiState.Loaded(plan)
-                    } else {
-                        generate()
-                    }
+                    _uiState.value =
+                        if (plan != null) WorkoutsUiState.Loaded(plan) else WorkoutsUiState.NeedsPlan
                 }
                 .onFailure {
                     _uiState.value = WorkoutsUiState.Error(it.message ?: "Could not load your plan")
@@ -69,8 +73,8 @@ class WorkoutsViewModel(
 
     /**
      * 1. What: Generates a brand-new week (AI, with mock fallback) starting today and saves it.
-     * 2. Who: Called by [load] when no plan exists, and on retry after an error.
-     * 3. When: First-time setup or an error retry.
+     * 2. Who: Convenience wrapper for the [RegenerateMode.NEW_WEEK] path.
+     * 3. When: A new-week generation with no specific mode in hand.
      */
     fun generate() = generate(RegenerateMode.NEW_WEEK)
 

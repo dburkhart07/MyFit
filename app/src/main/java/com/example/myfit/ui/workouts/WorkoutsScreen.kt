@@ -116,6 +116,15 @@ fun WorkoutsScreen(
             is WorkoutsUiState.Generating ->
                 StatusBox(message = "Building your plan…", modifier = modifier)
 
+            is WorkoutsUiState.NeedsPlan -> {
+                // First-time user: same "New week!" modal a returning user gets at week's end.
+                Column(modifier = modifier.fillMaxSize()) {}
+                NewWeekDialog(
+                    message = "Welcome! Generate your first weekly plan to get started.",
+                    onGenerate = { viewModel.generate(RegenerateMode.NEW_WEEK) },
+                )
+            }
+
             is WorkoutsUiState.Error ->
                 ErrorBox(message = state.message, onRetry = { viewModel.load() }, modifier = modifier)
 
@@ -506,13 +515,17 @@ private fun RegenerateDialog(
 }
 
 /**
- * 1. What: A non-dismissible "New week!" dialog shown once the current week is over. Its only
- *          action generates a fresh week — the user can't tap away or back out of it.
- * 2. Who: Shown by [LoadedContent] when [WorkoutPlan.isWeekOver] is true.
- * 3. When: On load (and any recomposition) once the week has fully elapsed.
+ * 1. What: A non-dismissible "New week!" dialog whose only action generates a fresh week — the user
+ *          can't tap away or back out of it. [message] adapts the copy (week rollover vs first run).
+ * 2. Who: Shown by [LoadedContent] when [WorkoutPlan.isWeekOver] is true, and by [WorkoutsScreen]
+ *          in the [WorkoutsUiState.NeedsPlan] (first-time) state.
+ * 3. When: Once the week has fully elapsed, or on first login before any plan exists.
  */
 @Composable
-private fun NewWeekDialog(onGenerate: () -> Unit) {
+private fun NewWeekDialog(
+    onGenerate: () -> Unit,
+    message: String = "Your plan is from last week. Generate a fresh plan to keep going.",
+) {
     val colors = MaterialTheme.colorScheme
     AlertDialog(
         onDismissRequest = {},
@@ -521,7 +534,7 @@ private fun NewWeekDialog(onGenerate: () -> Unit) {
         titleContentColor = colors.onSurface,
         textContentColor = colors.onSurfaceVariant,
         title = { Text("New week!") },
-        text = { Text("Your plan is from last week. Generate a fresh plan to keep going.") },
+        text = { Text(message) },
         confirmButton = {
             Button(onClick = onGenerate, shape = RoundedCornerShape(8.dp)) {
                 Text("Generate a new plan", fontWeight = FontWeight.SemiBold)
