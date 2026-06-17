@@ -107,14 +107,21 @@ class GeminiWorkoutGenerator(
      * 3. When: Immediately after the model responds.
      */
     private fun parsePlan(raw: String): WorkoutPlan? {
-        // Be defensive: models sometimes wrap JSON in ```json ... ``` or add a sentence.
         val start = raw.indexOf('{')
         val end = raw.lastIndexOf('}')
-        if (start == -1 || end == -1 || end < start) return null
+        if (start == -1 || end == -1 || end < start) {
+            android.util.Log.e("WorkoutAI", "no JSON braces found")
+            return null
+        }
         val jsonText = raw.substring(start, end + 1)
-        val dto = runCatching { json.decodeFromString<WorkoutPlanDto>(jsonText) }.getOrNull() ?: return null
-        return dto.toDomain()
+        val dto = runCatching { json.decodeFromString<WorkoutPlanDto>(jsonText) }
+            .onFailure { android.util.Log.e("WorkoutAI", "JSON decode failed", it) }
+            .getOrNull() ?: return null
+        val domain = dto.toDomain()
+        if (domain == null) android.util.Log.e("WorkoutAI", "toDomain returned null; dto=$dto")
+        return domain
     }
+
 
     /**
      * 1. What: Parses a single adjusted day from the model's text and grafts its exercises onto

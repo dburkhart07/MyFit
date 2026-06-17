@@ -1,5 +1,7 @@
 package com.example.myfit.model.dto
 
+import kotlinx.serialization.Serializable
+
 /**
  * 1. What: The Firestore-serializable shape of a generated workout plan.
  * 2. Who: Written to / read from `users/{uid}.workoutPlan` by the data layer; mapped to and from
@@ -10,6 +12,7 @@ package com.example.myfit.model.dto
  * Firestore requires for automatic (de)serialization. This is the same DTO pattern as
  * [OnboardingPreferencesDto].
  */
+@Serializable
 data class WorkoutPlanDto(
     val days: List<DayPlanDto> = emptyList(),
     val generatedAt: Long = 0L,
@@ -21,6 +24,7 @@ data class WorkoutPlanDto(
  * 2. Who: Held by [WorkoutPlanDto]; mapped to/from [com.example.myfit.model.DayPlan].
  * 3. When: (De)serialized as part of the plan document.
  */
+@Serializable
 data class DayPlanDto(
     val day: String = "",
     val focus: String = "",
@@ -34,6 +38,7 @@ data class DayPlanDto(
  * 2. Who: Held by [DayPlanDto]; mapped to/from [com.example.myfit.model.Exercise].
  * 3. When: (De)serialized as part of the plan document.
  */
+@Serializable
 data class ExerciseDto(
     val name: String = "",
     val sets: Int = 0,

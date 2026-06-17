@@ -13,6 +13,8 @@ import com.example.myfit.model.dto.WorkoutPlanDto
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import android.util.Log
+
 
 /**
  * Mappings between the strict [WorkoutPlan] domain model and the Firestore-friendly
@@ -58,7 +60,8 @@ fun WorkoutPlanDto.toDomain(): WorkoutPlan? = runCatching {
         generatedAt = generatedAt,
         startDate = resolveStartDate(),
     )
-}.getOrNull()
+}.onFailure { Log.e("WorkoutAI", "WorkoutPlanDto.toDomain failed", it) }
+    .getOrNull()
 
 /**
  * The plan's start date: the stored [WorkoutPlanDto.startDate] (epoch-day) when present, else a
@@ -86,7 +89,8 @@ internal fun DayPlanDto.toDomain(): DayPlan? = runCatching {
         exercises = if (restDay) emptyList() else exercises.mapNotNull { it.toDomain() },
         completedAt = if (restDay) null else completedAt,
     )
-}.getOrNull()
+}.onFailure { Log.e("WorkoutAI", "DayPlanDto.toDomain failed", it) }
+    .getOrNull()
 
 /**
  * 1. What: Maps a single [ExerciseDto] to a domain [Exercise]; returns null if it violates the
