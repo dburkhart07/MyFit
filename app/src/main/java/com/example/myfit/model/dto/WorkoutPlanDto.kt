@@ -13,6 +13,7 @@ package com.example.myfit.model.dto
 data class WorkoutPlanDto(
     val days: List<DayPlanDto> = emptyList(),
     val generatedAt: Long = 0L,
+    val startDate: Long = 0L,  // epoch-day of days[0]; 0 = legacy doc (mapper falls back)
 )
 
 /**
@@ -25,6 +26,7 @@ data class DayPlanDto(
     val focus: String = "",
     val restDay: Boolean = false,
     val exercises: List<ExerciseDto> = emptyList(),
+    val completedAt: Long? = null,  // millis the workout was finished; null = not attempted
 )
 
 /**
@@ -36,5 +38,6 @@ data class ExerciseDto(
     val name: String = "",
     val sets: Int = 0,
     val reps: Int = 0,
+    val done: Boolean = false,  // whether this exercise was checked off
 )
 

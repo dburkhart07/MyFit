@@ -14,5 +14,8 @@ val White = Color(0xFFFFFFFF)   // primary text / primary action button
 val Teal400 = Color(0xFF2DD4BF) // links / accents / sign-up
 val Cyan500 = Color(0xFF06B6D4) // gradient end (logo, checks, progress)
 
-val Red400 = Color(0xFFF87171) // destructive text / error messages
+val Red400 = Color(0xFFF87171) // destructive text / error messages / missed workouts
 val Red600 = Color(0xFFDC2626) // destructive buttons
+
+val Green400 = Color(0xFF4ADE80)  // completed workout (success border)
+val Yellow400 = Color(0xFFFBBF24) // partially completed workout (warning border)
