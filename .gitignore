@@ -13,6 +13,3 @@
 .externalNativeBuild
 .cxx
 local.properties
-
-# Firebase config (contains project-specific keys)
-app/google-services.json
