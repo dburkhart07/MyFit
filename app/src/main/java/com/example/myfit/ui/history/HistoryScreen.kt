@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -20,6 +21,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -27,6 +30,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,59 +40,25 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.myfit.ui.components.BottomTab
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.myfit.model.DayStatus
 import com.example.myfit.ui.common.DailyWorkout
+import com.example.myfit.ui.components.BottomTab
+import com.example.myfit.ui.components.CompletionIcon
 import com.example.myfit.ui.components.MyFitBottomBar
 import com.example.myfit.ui.components.MyFitTopBar
-import com.example.myfit.ui.components.CompletionIcon
 import com.example.myfit.ui.theme.Cyan500
 import com.example.myfit.ui.theme.MyFitTheme
 import com.example.myfit.ui.theme.Teal400
 
-/** Dummy history data — replace with a real backend fetch later. */
-private val DUMMY_WEEKS = listOf(
-    WeekHistory(
-        week = "Week of May 26",
-        completed = 4,
-        total = 5,
-        dailyWorkouts = listOf(
-            DailyWorkout("Mon", "Upper body", "5 / 5 exercises", completed = true),
-            DailyWorkout("Wed", "Lower body", "6 / 6 exercises", completed = true),
-            DailyWorkout("Thu", "Upper body", "5 / 5 exercises", completed = true),
-            DailyWorkout("Sat", "Full body", "7 / 7 exercises", completed = true),
-            DailyWorkout("Sun", "Cardio", "Missed", completed = false),
-        ),
-    ),
-    WeekHistory(
-        week = "Week of May 19",
-        completed = 5,
-        total = 5,
-        dailyWorkouts = listOf(
-            DailyWorkout("Mon", "Upper body", "5 / 5 exercises", completed = true),
-            DailyWorkout("Tue", "Lower body", "6 / 6 exercises", completed = true),
-            DailyWorkout("Wed", "Core", "4 / 4 exercises", completed = true),
-            DailyWorkout("Fri", "Full body", "7 / 7 exercises", completed = true),
-            DailyWorkout("Sat", "Cardio", "3 / 3 exercises", completed = true),
-        ),
-    ),
-    WeekHistory(
-        week = "Week of May 12",
-        completed = 3,
-        total = 4,
-        dailyWorkouts = listOf(
-            DailyWorkout("Mon", "Upper body", "5 / 5 exercises", completed = true),
-            DailyWorkout("Wed", "Lower body", "6 / 6 exercises", completed = true),
-            DailyWorkout("Fri", "Full body", "Missed", completed = false),
-            DailyWorkout("Sat", "Core", "4 / 4 exercises", completed = true),
-        ),
-    ),
-)
-
 /**
- * 1. What: History tab — a list of training weeks that drills into each week's daily workouts.
- * 2. Who: Called by the app's NavHost (the History destination) once nav is wired.
+ * 1. What: History tab — a list of finished training weeks (most recent first) that drills into
+ *    each week's daily workouts. Backed by real archived data from [HistoryViewModel].
+ * 2. Who: Called by the app's NavHost (the History destination).
  * 3. When: Shown when the user taps the History tab in the bottom bar.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -96,35 +66,52 @@ private val DUMMY_WEEKS = listOf(
 fun HistoryScreen(
     onLogout: () -> Unit,
     onSelectTab: (BottomTab) -> Unit,
+    viewModel: HistoryViewModel = viewModel(),
 ) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var selectedWeek by remember { mutableStateOf<Int?>(null) }
+
+    LaunchedEffect(Unit) { viewModel.load() }
 
     Scaffold(
         topBar = { MyFitTopBar(onLogout = onLogout) },
         bottomBar = { MyFitBottomBar(current = BottomTab.History, onSelect = onSelectTab) },
         containerColor = MaterialTheme.colorScheme.surface,
     ) { padding ->
-        val selected = selectedWeek
-        if (selected == null) {
-            WeekListView(
-                weeks = DUMMY_WEEKS,
-                onWeekClick = { selectedWeek = it },
-                modifier = Modifier.padding(padding),
-            )
-        } else {
-            WeekDetailView(
-                week = DUMMY_WEEKS[selected],
-                onBack = { selectedWeek = null },
-                modifier = Modifier.padding(padding),
-            )
+        val modifier = Modifier.padding(padding)
+        when (val state = uiState) {
+            is HistoryUiState.Loading -> StatusBox(message = "Loading your history…", modifier = modifier)
+
+            is HistoryUiState.Error ->
+                ErrorBox(message = state.message, onRetry = { viewModel.load() }, modifier = modifier)
+
+            is HistoryUiState.Loaded -> {
+                val weeks = state.weeks
+                val selected = selectedWeek
+                when {
+                    weeks.isEmpty() -> EmptyHistory(modifier = modifier)
+                    selected == null || selected !in weeks.indices ->
+                        WeekListView(
+                            weeks = weeks,
+                            onWeekClick = { selectedWeek = it },
+                            modifier = modifier,
+                        )
+                    else ->
+                        WeekDetailView(
+                            week = weeks[selected],
+                            onBack = { selectedWeek = null },
+                            modifier = modifier,
+                        )
+                }
+            }
         }
     }
 }
 
 /**
  * 1. What: The list of weeks, each a tappable card with a completion progress bar.
- * 2. Who: Rendered by [HistoryScreen] when no week is selected.
- * 3. When: The default state of the History tab.
+ * 2. Who: Rendered by [HistoryScreen] when weeks exist and none is selected.
+ * 3. When: The default state of the History tab once data has loaded.
  */
 @Composable
 private fun WeekListView(
@@ -292,7 +279,8 @@ private fun WeekDetailView(
 /**
  * 1. What: A single day's workout row — day · title, exercise count, and a completion icon.
  * 2. Who: Rendered for every entry in [WeekDetailView].
- * 3. When: Shown in a week's detail view; missed workouts show a gray X, completed a teal check.
+ * 3. When: Shown in a week's detail view; missed workouts show a gray X, partial an empty circle,
+ *    and fully-completed a teal check.
  */
 @Composable
 fun DailyWorkoutCard(workout: DailyWorkout) {
@@ -317,78 +305,174 @@ fun DailyWorkoutCard(workout: DailyWorkout) {
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                text = workout.exercises,
+                text = workout.label,
                 style = MaterialTheme.typography.bodySmall,
-                color = if (workout.completed) {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                } else {
+                color = if (workout.status == DayStatus.MISSED) {
                     MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
                 },
             )
         }
-        CompletionIcon(completed = workout.completed)
+        CompletionIcon(status = workout.status)
     }
 }
 
 /**
- * 1. What: Design-time preview of the History tab (week list).
- * 2. Who: Called by Android Studio's Compose preview renderer.
- * 3. When: Rendered at design time in the IDE; never runs in the shipped app.
+ * 1. What: Centered status box with a spinner and a message (the Loading state).
+ * 2. Who: Rendered by [HistoryScreen] while history is being read from Firestore.
+ * 3. When: On first load.
  */
-@Preview(showBackground = true)
 @Composable
-private fun HistoryScreenPreview() {
-    MyFitTheme { HistoryScreen(onLogout = {}, onSelectTab = {}) }
+private fun StatusBox(message: String, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        CircularProgressIndicator()
+        Spacer(Modifier.height(16.dp))
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
 }
 
 /**
- * 1. What: Design-time preview of the week-list view with dummy week data.
- * 2. Who: Called by Android Studio's Compose preview renderer.
- * 3. When: Rendered at design time in the IDE; never runs in the shipped app.
+ * 1. What: Friendly empty state shown until the user finishes their first week.
+ * 2. Who: Rendered by [HistoryScreen] when there are no archived weeks.
+ * 3. When: New accounts, or before any week has elapsed.
  */
+@Composable
+private fun EmptyHistory(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            text = "No completed weeks yet",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = "Finish a week of workouts and it'll show up here.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+/**
+ * 1. What: Error message plus a Retry action.
+ * 2. Who: Rendered by [HistoryScreen] in the Error state.
+ * 3. When: When loading history fails.
+ */
+@Composable
+private fun ErrorBox(message: String, onRetry: () -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.error,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(16.dp))
+        Button(onClick = onRetry, shape = RoundedCornerShape(8.dp)) {
+            Text("Retry", fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+/* ----------------------------- Previews ----------------------------- */
+
+private val SAMPLE_WEEKS = listOf(
+    WeekHistory(
+        week = "Week of Jun 9",
+        completed = 3,
+        total = 5,
+        dailyWorkouts = listOf(
+            DailyWorkout("Mon", "Upper body", completed = 5, total = 5),
+            DailyWorkout("Tue", "Lower body", completed = 3, total = 6),
+            DailyWorkout("Thu", "Upper body", completed = 0, total = 5),
+            DailyWorkout("Sat", "Full body", completed = 7, total = 7),
+            DailyWorkout("Sun", "Core", completed = 4, total = 4),
+        ),
+    ),
+    WeekHistory(
+        week = "Week of Jun 2",
+        completed = 5,
+        total = 5,
+        dailyWorkouts = listOf(
+            DailyWorkout("Mon", "Upper body", completed = 5, total = 5),
+            DailyWorkout("Wed", "Lower body", completed = 6, total = 6),
+        ),
+    ),
+)
+
 @Preview(showBackground = true)
 @Composable
 private fun WeekListViewPreview() {
-    MyFitTheme {
-        WeekListView(weeks = DUMMY_WEEKS, onWeekClick = {})
-    }
+    MyFitTheme { WeekListView(weeks = SAMPLE_WEEKS, onWeekClick = {}) }
 }
 
-/**
- * 1. What: Design-time preview of a single week summary card with dummy data.
- * 2. Who: Called by Android Studio's Compose preview renderer.
- * 3. When: Rendered at design time in the IDE; never runs in the shipped app.
- */
 @Preview(showBackground = true)
 @Composable
 private fun WeekCardPreview() {
-    MyFitTheme {
-        WeekCard(week = DUMMY_WEEKS[0], onClick = {})
-    }
+    MyFitTheme { WeekCard(week = SAMPLE_WEEKS[0], onClick = {}) }
 }
 
-/**
- * 1. What: Design-time preview of a week's detail view with dummy data.
- * 2. Who: Called by Android Studio's Compose preview renderer.
- * 3. When: Rendered at design time in the IDE; never runs in the shipped app.
- */
 @Preview(showBackground = true)
 @Composable
 private fun WeekDetailViewPreview() {
-    MyFitTheme {
-        WeekDetailView(week = DUMMY_WEEKS[0], onBack = {})
-    }
+    MyFitTheme { WeekDetailView(week = SAMPLE_WEEKS[0], onBack = {}) }
 }
 
-/**
- * 1. What: Design-time preview of a single daily-workout row with dummy data.
- * 2. Who: Called by Android Studio's Compose preview renderer.
- * 3. When: Rendered at design time in the IDE; never runs in the shipped app.
- */
 @Preview(showBackground = true)
 @Composable
 private fun DailyWorkoutCardPreview() {
     MyFitTheme {
-        DailyWorkoutCard(DailyWorkout("Mon", "Upper body", "5 / 5 exercises", completed = true))
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(16.dp)) {
+            DailyWorkoutCard(DailyWorkout("Mon", "Upper body", completed = 5, total = 5))
+            DailyWorkoutCard(DailyWorkout("Tue", "Lower body", completed = 3, total = 6))
+            DailyWorkoutCard(DailyWorkout("Thu", "Cardio", completed = 0, total = 5))
+        }
     }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun EmptyHistoryPreview() {
+    MyFitTheme { EmptyHistory() }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ProgressBarPreview() {
+    MyFitTheme { ProgressBar(fraction = 0.6f) }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun StatusBoxPreview() {
+    MyFitTheme { StatusBox(message = "Loading your history…") }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ErrorBoxPreview() {
+    MyFitTheme { ErrorBox(message = "Could not load your history", onRetry = {}) }
 }

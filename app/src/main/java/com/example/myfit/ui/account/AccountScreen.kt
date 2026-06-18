@@ -55,6 +55,7 @@ import com.example.myfit.model.Equipment
 import com.example.myfit.model.ExperienceLevel
 import com.example.myfit.model.Goal
 import com.example.myfit.model.OnboardingPreferences
+import com.example.myfit.model.ProfileStats
 import com.example.myfit.ui.components.BottomTab
 import com.example.myfit.ui.components.MyFitBottomBar
 import com.example.myfit.ui.components.MyFitTopBar
@@ -63,7 +64,6 @@ import com.example.myfit.ui.onboarding.OnboardingViewModel
 import com.example.myfit.ui.onboarding.PreferencesUiState
 import com.example.myfit.ui.theme.MyFitTheme
 
-private const val PROFILE_STATS = "12 workouts · 3 wk streak"
 private const val NOT_SET = "Not set"
 private val GOAL_OPTIONS = Goal.entries.map { it.label }
 private val DAYS_OPTIONS = OnboardingPreferences.DAYS_RANGE.map { it.toString() }
@@ -82,11 +82,16 @@ fun AccountScreen(
     onSelectTab: (BottomTab) -> Unit,
     viewModel: AuthViewModel = viewModel(),
     preferencesViewModel: OnboardingViewModel = viewModel(),
+    statsViewModel: AccountStatsViewModel = viewModel(),
 ) {
     val prefsState by preferencesViewModel.preferences.collectAsStateWithLifecycle()
     val saveState by preferencesViewModel.uiState.collectAsStateWithLifecycle()
+    val stats by statsViewModel.stats.collectAsStateWithLifecycle()
 
-    LaunchedEffect(Unit) { preferencesViewModel.loadPreferences() }
+    LaunchedEffect(Unit) {
+        preferencesViewModel.loadPreferences()
+        statsViewModel.load()
+    }
 
     Scaffold(
         topBar = { MyFitTopBar(onLogout = onLogout) },
@@ -107,7 +112,7 @@ fun AccountScreen(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
             )
-            UserInfoCard(name = viewModel.displayName)
+            UserInfoCard(name = viewModel.displayName, stats = stats)
             WorkoutInfoSection(
                 state = prefsState,
                 saveState = saveState,
@@ -120,14 +125,20 @@ fun AccountScreen(
 }
 
 /**
- * 1. What: Gradient header card with the user's avatar, name, and workout stats.
+ * 1. What: Gradient header card with the user's avatar, name, and real workout stats (completed
+ *    workouts + week streak); shows a placeholder line until [stats] loads.
  * 2. Who: Rendered at the top of [AccountScreen].
- * 3. When: Always; [name] is the signed-in user's display name, stats are dummy data.
+ * 3. When: Always; [name] is the signed-in user's display name, [stats] come from the repository.
  */
 @Composable
-private fun UserInfoCard(name: String) {
+private fun UserInfoCard(name: String, stats: ProfileStats?) {
     val colors = MaterialTheme.colorScheme
     val initial = name.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+    val statsText = if (stats == null) {
+        "Loading stats…"
+    } else {
+        "${stats.completedWorkouts} completed workouts · ${stats.weekStreak} wk streak"
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -162,7 +173,7 @@ private fun UserInfoCard(name: String) {
                 color = colors.onSurface,
             )
             Text(
-                text = PROFILE_STATS,
+                text = statsText,
                 style = MaterialTheme.typography.bodySmall,
                 color = colors.onSurfaceVariant,
             )
@@ -517,7 +528,7 @@ private fun AccountScreenPreview() {
 @Composable
 private fun UserInfoCardPreview() {
     MyFitTheme {
-        UserInfoCard(name = "Dalton Burkhart")
+        UserInfoCard(name = "Dalton Burkhart", stats = ProfileStats(completedWorkouts = 12, weekStreak = 3))
     }
 }
 

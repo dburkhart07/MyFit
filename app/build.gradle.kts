@@ -68,4 +68,6 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     implementation(libs.androidx.compose.material.icons.extended)
+    implementation(libs.firebase.ai)
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 }
