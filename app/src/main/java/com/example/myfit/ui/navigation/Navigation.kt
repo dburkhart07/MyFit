@@ -6,7 +6,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.myfit.ui.account.AccountScreen
-import com.example.myfit.ui.components.BottomTab
+import com.example.myfit.ui.common.BottomTab
 import com.example.myfit.ui.history.HistoryScreen
 import com.example.myfit.ui.login.LoginScreen
 import com.example.myfit.ui.login.SignupScreen

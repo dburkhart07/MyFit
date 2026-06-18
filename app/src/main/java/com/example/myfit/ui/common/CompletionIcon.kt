@@ -1,4 +1,4 @@
-package com.example.myfit.ui.components
+package com.example.myfit.ui.common
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border

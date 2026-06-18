@@ -42,7 +42,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myfit.auth.AuthUiState
 import com.example.myfit.auth.AuthViewModel
-import com.example.myfit.ui.components.Logo
+import com.example.myfit.ui.common.Logo
 import com.example.myfit.ui.theme.MyFitTheme
 
 /**

@@ -47,10 +47,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myfit.model.DayStatus
 import com.example.myfit.ui.common.DailyWorkout
-import com.example.myfit.ui.components.BottomTab
-import com.example.myfit.ui.components.CompletionIcon
-import com.example.myfit.ui.components.MyFitBottomBar
-import com.example.myfit.ui.components.MyFitTopBar
+import com.example.myfit.ui.common.BottomTab
+import com.example.myfit.ui.common.CompletionIcon
+import com.example.myfit.ui.common.MyFitBottomBar
+import com.example.myfit.ui.common.MyFitTopBar
 import com.example.myfit.ui.theme.Cyan500
 import com.example.myfit.ui.theme.MyFitTheme
 import com.example.myfit.ui.theme.Teal400

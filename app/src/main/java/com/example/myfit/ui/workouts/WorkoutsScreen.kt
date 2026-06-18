@@ -57,10 +57,10 @@ import com.example.myfit.model.DifficultyAdjustment
 import com.example.myfit.model.Exercise
 import com.example.myfit.model.RegenerateMode
 import com.example.myfit.model.WorkoutPlan
-import com.example.myfit.ui.components.BottomTab
-import com.example.myfit.ui.components.CompletionIcon
-import com.example.myfit.ui.components.MyFitBottomBar
-import com.example.myfit.ui.components.MyFitTopBar
+import com.example.myfit.ui.common.BottomTab
+import com.example.myfit.ui.common.CompletionIcon
+import com.example.myfit.ui.common.MyFitBottomBar
+import com.example.myfit.ui.common.MyFitTopBar
 import com.example.myfit.ui.theme.Green400
 import com.example.myfit.ui.theme.MyFitTheme
 import com.example.myfit.ui.theme.Yellow400

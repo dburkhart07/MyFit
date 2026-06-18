@@ -1,4 +1,4 @@
-package com.example.myfit.ui.components
+package com.example.myfit.ui.common
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material.icons.Icons

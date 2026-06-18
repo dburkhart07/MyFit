@@ -56,9 +56,9 @@ import com.example.myfit.model.ExperienceLevel
 import com.example.myfit.model.Goal
 import com.example.myfit.model.OnboardingPreferences
 import com.example.myfit.model.ProfileStats
-import com.example.myfit.ui.components.BottomTab
-import com.example.myfit.ui.components.MyFitBottomBar
-import com.example.myfit.ui.components.MyFitTopBar
+import com.example.myfit.ui.common.BottomTab
+import com.example.myfit.ui.common.MyFitBottomBar
+import com.example.myfit.ui.common.MyFitTopBar
 import com.example.myfit.ui.onboarding.OnboardingUiState
 import com.example.myfit.ui.onboarding.OnboardingViewModel
 import com.example.myfit.ui.onboarding.PreferencesUiState
