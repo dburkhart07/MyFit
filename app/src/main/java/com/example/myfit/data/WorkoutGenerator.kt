@@ -194,7 +194,7 @@ class GeminiWorkoutGenerator(
                 {
                   "day": "$firstLabel",
                   "focus": "Upper body",
-                  "isRest": false,
+                  "restDay": false,
                   "exercises": [
                     { "name": "Bench press", "sets": 3, "reps": 10 }
                   ]
@@ -205,8 +205,8 @@ class GeminiWorkoutGenerator(
             Rules for the JSON:
             - "days" MUST contain exactly 7 objects, one per day.
             - "day" MUST use exactly these labels, in this order: $labelList.
-            - For a rest day: set "isRest": true, "focus": "Rest", and "exercises": [].
-            - For a workout day: "isRest": false, a short "focus" label, and a non-empty "exercises".
+            - For a rest day: set "restDay": true, "focus": "Rest", and "exercises": [].
+            - For a workout day: "restDay": false, a short "focus" label, and a non-empty "exercises".
             - "sets" and "reps" are positive integers.
             - Output nothing except the JSON object.
         """.trimIndent()
@@ -248,7 +248,7 @@ class GeminiWorkoutGenerator(
             {
               "day": "${day.day}",
               "focus": "${day.focus}",
-              "isRest": false,
+              "restDay": false,
               "exercises": [
                 { "name": "Bench press", "sets": 3, "reps": 10 }
               ]
@@ -256,7 +256,7 @@ class GeminiWorkoutGenerator(
 
             Rules for the JSON:
             - "day" MUST be "${day.day}" and "focus" MUST be "${day.focus}".
-            - "isRest" MUST be false.
+            - "restDay" MUST be false.
             - "exercises" MUST list the same exercises by name, in the same order as above.
             - "sets" and "reps" are positive integers.
             - Output nothing except the JSON object.
